@@ -1,0 +1,15 @@
+# Python / Server
+__pycache__/
+*.py[cod]
+port.info
+defensive.db
+
+# C++ / Client
+*.exe
+*.obj
+*.pdb
+.vscode/
+.vs/
+me.info
+priv.key
+transfer.json
