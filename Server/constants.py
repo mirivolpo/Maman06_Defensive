@@ -1,0 +1,45 @@
+DEFAULT_PORT = 1369
+HOST = '127.0.0.1'  # Localhost - the server runs on your local machine
+
+REQ_HEADER_SIZE = 23
+# Define the local directory for saving client files and create it if it doesn't exist
+UPLOAD_DIR = 'uploads'
+
+
+
+# The payload structure for 826 is:
+# 255 bytes (Name) + 160 bytes (Public Key) = 415 bytes total
+REQ_SEND_PUB_KEY_PAYLOAD=415
+
+
+# Server Constants
+SERVER_VERSION = 3
+EMPTY_PAYLOAD_SIZE = 0
+UUID_SIZE = 16
+FILE_NAME_SIZE = 255
+CLIENT_NAME_SIZE=255
+
+# Request Codes (Client -> Server)
+REQ_REGISTER = 825
+REQ_SEND_PUB_KEY = 826
+REQ_RECONNECT = 827
+REQ_SEND_FILE = 828
+REQ_CRC_OK = 900
+REQ_CRC_INVALID_RETRY = 901
+REQ_CRC_INVALID_ABORT = 902
+
+# Response Codes (Server -> Client)
+RES_REGISTER_SUCC = 1600
+RES_REGISTER_FAIL = 1601
+RES_PUB_KEY_AES = 1602
+RES_FILE_OK_CRC = 1603
+RES_MSG_RECEIVED = 1604
+RES_RECONNECT_SUCC = 1605
+RES_RECONNECT_FAIL = 1606
+RES_GENERAL_ERROR = 1607
+
+# Struct Formats
+REQ_HEADER_FORMAT = '<16sBHI'
+RESPONSE_HEADER_FORMAT = '<BHI'
+PAYLOAD_FORMAT_1603 = '<16sI255sI'
+PAYLOAD_FORMAT_828_HEADER = '<IIHH255s'
