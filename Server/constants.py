@@ -6,6 +6,7 @@ HOST = '127.0.0.1'         # Localhost
 DEFAULT_PORT = 1369
 UPLOAD_DIR = 'uploads'     # Local directory for saving client files
 NETWORK_CHUNK_SIZE = 4096  # Buffer size for reading data streams
+PORT_INFO_FILE = 'port.info'
 
 #Protocol Settings
 SERVER_VERSION = 3
