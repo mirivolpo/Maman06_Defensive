@@ -17,6 +17,7 @@ class Server:
     def __init__(self):
         """Initializes the server state and loads the port configuration."""
         self.clients = {}
+        self.files = {}
         self.file_manager = FileManager()
         self.port = self._read_port()
 
@@ -29,6 +30,8 @@ class Server:
             if os.path.exists(constants.PORT_INFO_FILE):
                 with open(constants.PORT_INFO_FILE, 'r', encoding='utf-8') as f:
                     return int(f.read().strip())
+            else:
+                print("Warning: port.info not found. Using default port 1369.")
         except (ValueError, OSError) as e:
             print(f"Warning: Could not read port from file. Using default 1369. Error: {e}")
 
@@ -47,7 +50,7 @@ class Server:
                     conn, addr = server_socket.accept()
 
                     # Create a handler instance for the new client
-                    handler = RequestHandler(self.clients, self.file_manager)
+                    handler = RequestHandler(self.clients, self.file_manager, self.files)
 
                     # Spawn a new thread for the client
                     client_thread = threading.Thread(

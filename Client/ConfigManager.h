@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 struct ClientConfig
 {
@@ -15,5 +16,5 @@ struct ClientConfig
 class ConfigManager
 {
 public:
-    static ClientConfig loadFromFile(const std::string& filePath);
+    static ClientConfig loadFromFile(const std::filesystem::path &filePath);
 };

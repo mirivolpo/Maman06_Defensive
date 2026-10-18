@@ -1,8 +1,11 @@
 #pragma once
 #include <cstdint>
+#include <string>
+#include <vector>
 
 // Disable memory padding to ensure exact binary alignment with the Python server
 #pragma pack(push, 1)
+
 
 struct RequestHeader
 {

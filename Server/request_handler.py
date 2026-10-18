@@ -14,15 +14,29 @@ from Crypto.PublicKey import RSA
 from client import Client
 
 
+def recv_exact(conn, size):
+    """Receive exactly size bytes from the socket."""
+    data = bytearray()
+
+    while len(data) < size:
+        chunk = conn.recv(size - len(data))
+
+        if not chunk:
+            raise ConnectionError("Client disconnected during data reception.")
+
+        data.extend(chunk)
+
+    return bytes(data)
+
+
+
 class RequestHandler:
     """Handles client requests and executes the appropriate protocol actions."""
 
-    def __init__(self, clients_db, file_manager):
-        """
-        Initializes the handler with references to the global state.
-        """
+    def __init__(self, clients_db, file_manager, files_db=None):
         self.clients = clients_db
         self.file_manager = file_manager
+        self.files = files_db
 
     def parse_header(self, conn):
         """
@@ -31,8 +45,7 @@ class RequestHandler:
         Returns a tuple of these values, or None if the connection fails.
         """
         try:
-            header_data = conn.recv(constants.REQ_HEADER_SIZE)
-
+            header_data = recv_exact(conn, constants.REQ_HEADER_SIZE)
             if not header_data or len(header_data) < constants.REQ_HEADER_SIZE:
                 return None
 
@@ -103,7 +116,7 @@ class RequestHandler:
         saves it to RAM, and sends the appropriate response.
         """
         try:
-            payload = conn.recv(payload_size)
+            payload = recv_exact(conn, payload_size)
             name = payload.decode('ascii').rstrip('\x00')
 
             # Check if the name already exists in the RAM database
@@ -145,7 +158,7 @@ class RequestHandler:
         and sends it back to the client.
         """
         try:
-            payload = conn.recv(payload_size)
+            payload = recv_exact(conn, payload_size)
 
             if len(payload) < constants.PUB_KEY_PAYLOAD_SIZE:
                 print("Error: Payload too small for public key request.")
@@ -197,7 +210,7 @@ class RequestHandler:
         Sends response 1605 (Success with new AES) or 1606 (Failure).
         """
         try:
-            payload = conn.recv(payload_size)
+            payload = recv_exact(conn, payload_size)
             name = payload.decode('ascii').rstrip('\x00')
 
             # Reject if client or public key is missing
@@ -253,7 +266,7 @@ class RequestHandler:
                 return
 
             file_header_size = constants.FILE_PAYLOAD_HEADER_SIZE
-            file_header = conn.recv(file_header_size)
+            file_header = recv_exact(conn, file_header_size)
 
             (
                 content_size,
@@ -266,17 +279,11 @@ class RequestHandler:
                 file_header
             )
 
+
             file_name = file_name_bytes.decode('ascii').rstrip('\x00')
             print(f"Receiving file '{file_name}'...")
 
-            encrypted_content = b""
-            bytes_left = content_size
-            while bytes_left > 0:
-                chunk = conn.recv(min(constants.NETWORK_CHUNK_SIZE, bytes_left))
-                if not chunk:
-                    break
-                encrypted_content += chunk
-                bytes_left -= len(chunk)
+            encrypted_content = recv_exact(conn, content_size)
 
             # Initialize AES cipher in CBC mode with zeroed IV
             iv = bytes(constants.AES_IV_SIZE_BYTES)
@@ -314,7 +321,7 @@ class RequestHandler:
         Saves the file using FileManager if valid.
         """
         try:
-            file_name_bytes = conn.recv(payload_size)
+            file_name_bytes = recv_exact(conn, payload_size)
             file_name = file_name_bytes.decode('ascii').rstrip('\x00')
 
             if code == constants.REQ_CRC_OK:
@@ -324,6 +331,7 @@ class RequestHandler:
                 )
 
                 if is_saved:
+                    self.files[(client_id, file_name)] = True
                     response_header = struct.pack(
                         constants.RESPONSE_HEADER_FORMAT,
                         constants.SERVER_VERSION,
