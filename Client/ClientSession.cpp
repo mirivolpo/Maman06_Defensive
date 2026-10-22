@@ -214,6 +214,15 @@ void ClientSession::sendFile(const std::string &filePath)
     {
         if (sendFileAttempt(filePath))
         {
+            std::vector<uint8_t> request =
+                MessageCodec::buildCRCRequest(
+                    clientId_,
+                    CRC_VALID_REQUEST,
+                    fileName);
+
+            networkClient_.sendData(request);
+            receiveCRCConfirmation();
+
             return;
         }
 
@@ -278,9 +287,27 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
             1,
             1);
 
-    cryptoManager_.startFileEncryption(aesKey_);
-
     networkClient_.sendData(requestPrefix);
+
+    uint32_t crc = sendEncryptedFileContent(
+        file,
+        originalFileSize);
+
+    ResponsePayload1603 response = receiveFileResponse();
+
+    validateFileResponse(
+        response,
+        fileName,
+        static_cast<uint32_t>(encryptedFileSize));
+
+    return crc == response.crc;
+}
+
+uint32_t ClientSession::sendEncryptedFileContent(
+    std::ifstream &file,
+    std::uintmax_t originalFileSize)
+{
+    cryptoManager_.startFileEncryption(aesKey_);
 
     uint32_t crc = 0;
 
@@ -305,10 +332,14 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
         }
     }
 
-    crc = Checksum::finalizeCRC(crc, originalFileSize);
+    return Checksum::finalizeCRC(crc, originalFileSize);
+}
 
-    ResponsePayload1603 response = receiveFileResponse();
-
+void ClientSession::validateFileResponse(
+    const ResponsePayload1603 &response,
+    const std::string &fileName,
+    uint32_t encryptedFileSize) const
+{
     if (std::memcmp(
             response.clientId,
             clientId_.clientId,
@@ -327,27 +358,11 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
             "File name mismatch in file response");
     }
 
-    if (response.contentSize !=
-        static_cast<uint32_t>(encryptedFileSize))
+    if (response.contentSize != encryptedFileSize)
     {
         throw std::runtime_error(
             "File size mismatch in file response");
     }
-
-    bool crcMatches = (crc == response.crc);
-
-    if (crcMatches)
-    {
-        std::vector<uint8_t> request =
-            MessageCodec::buildCRCRequest(
-                clientId_,
-                CRC_VALID_REQUEST,
-                fileName);
-
-        networkClient_.sendData(request);
-        receiveCRCConfirmation();
-    }
-    return crcMatches;
 }
 
 ResponsePayload1603 ClientSession::receiveFileResponse()

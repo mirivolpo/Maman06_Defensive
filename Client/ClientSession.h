@@ -38,6 +38,14 @@ private:
     void sendFile(const std::string &filePath);
     bool sendFileAttempt(const std::string &filePath);
 
+    uint32_t sendEncryptedFileContent(
+        std::ifstream &file,
+        std::uintmax_t originalFileSize);
+
     ResponsePayload1603 receiveFileResponse();
     void receiveCRCConfirmation();
+    void validateFileResponse(
+        const ResponsePayload1603 &response,
+        const std::string &fileName,
+        uint32_t encryptedFileSize) const;
 };
