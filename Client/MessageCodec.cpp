@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <stdexcept>
+#include <limits>
 
 namespace MessageCodec
 {
@@ -103,21 +104,96 @@ namespace MessageCodec
         return request;
     }
 
-    
-ResponsePayload1602 parsePublicKeyResponse(
-    const std::vector<uint8_t>& data)
-{
-    if (data.size() != sizeof(ResponsePayload1602))
+    ResponsePayload1602 parsePublicKeyResponse(
+        const std::vector<uint8_t> &data)
     {
-        throw std::runtime_error("Invalid public key response payload size");
+        if (data.size() != sizeof(ResponsePayload1602))
+        {
+            throw std::runtime_error("Invalid public key response payload size");
+        }
+
+        ResponsePayload1602 payload{};
+
+        std::memcpy(&payload, data.data(), sizeof(payload));
+
+        return payload;
     }
 
-    ResponsePayload1602 payload{};
-
-    std::memcpy(&payload, data.data(), sizeof(payload));
-
-    return payload;
 }
 
+std::vector<uint8_t> MessageCodec::buildFileRequestPrefix(
+    const ResponsePayloadClientId &clientId,
+    const std::string &fileName,
+    uint32_t originalFileSize,
+    uint32_t encryptedFileSize,
+    uint16_t packetNumber,
+    uint16_t totalPackets)
+{
+    if (encryptedFileSize >
+        std::numeric_limits<uint32_t>::max() - sizeof(PayloadFile))
+    {
+        throw std::runtime_error("File payload is too large");
+    }
 
+    RequestHeader header{};
+
+    std::memcpy(
+        header.clientId,
+        clientId.clientId,
+        sizeof(header.clientId));
+
+    header.version = CLIENT_VERSION;
+    header.code = SEND_FILE_REQUEST;
+    header.payloadSize = sizeof(PayloadFile) + encryptedFileSize;
+
+    PayloadFile payload{};
+
+    payload.contentSize = encryptedFileSize;
+    payload.origFileSize = originalFileSize;
+    payload.packetNumber = packetNumber;
+    payload.totalPackets = totalPackets;
+
+    if (fileName.empty() ||
+        fileName.size() >= sizeof(payload.fileName))
+    {
+        throw std::runtime_error("Invalid file name");
+    }
+
+    std::memcpy(
+        payload.fileName,
+        fileName.data(),
+        fileName.size());
+
+    std::vector<uint8_t> requestPrefix(
+        sizeof(RequestHeader) + sizeof(PayloadFile));
+
+    std::memcpy(
+        requestPrefix.data(),
+        &header,
+        sizeof(header));
+
+    std::memcpy(
+        requestPrefix.data() + sizeof(header),
+        &payload,
+        sizeof(payload));
+
+    return requestPrefix;
+}
+
+ResponsePayload1603 MessageCodec::parseFileResponse(
+    const std::vector<uint8_t> &payloadBytes)
+{
+    if (payloadBytes.size() != sizeof(ResponsePayload1603))
+    {
+        throw std::runtime_error("Invalid file response size");
+    }
+
+    ResponsePayload1603 payload{};
+
+    std::memcpy(
+        &payload,
+        payloadBytes.data(),
+        sizeof(payload));
+
+    return payload;
 }

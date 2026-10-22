@@ -105,3 +105,48 @@ void CryptoManager::savePrivateKeyToFile(const std::string &filePath) const
         throw std::runtime_error("Failed to close private key file");
     }
 }
+
+void CryptoManager::startFileEncryption(
+    const std::vector<uint8_t> &aesKey)
+{
+    if (aesKey.size() != AES_KEY_SIZE_BYTES)
+    {
+        throw std::runtime_error("Invalid AES key size");
+    }
+
+    CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE] = {};
+
+    aesEncryptor_.SetKeyWithIV(
+        aesKey.data(),
+        aesKey.size(),
+        iv,
+        sizeof(iv));
+}
+
+std::vector<uint8_t> CryptoManager::encryptFileChunk(
+    const std::vector<uint8_t> &chunk,
+    bool isLastChunk)
+{
+    std::vector<uint8_t> paddedChunk = chunk;
+
+    if (isLastChunk)
+    {
+        std::size_t paddingSize =
+            CryptoPP::AES::BLOCKSIZE -
+            (paddedChunk.size() % CryptoPP::AES::BLOCKSIZE);
+
+        paddedChunk.insert(
+            paddedChunk.end(),
+            paddingSize,
+            static_cast<uint8_t>(paddingSize));
+    }
+
+    std::vector<uint8_t> encryptedChunk(paddedChunk.size());
+
+    aesEncryptor_.ProcessData(
+        encryptedChunk.data(),
+        paddedChunk.data(),
+        paddedChunk.size());
+
+    return encryptedChunk;
+}

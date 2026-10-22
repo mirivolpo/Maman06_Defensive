@@ -24,4 +24,15 @@ namespace MessageCodec
     ResponsePayload1602 parsePublicKeyResponse(
         const std::vector<uint8_t> &data);
 
+    std::vector<uint8_t> buildFileRequestPrefix(
+        const ResponsePayloadClientId &clientId,
+        const std::string &fileName,
+        uint32_t originalFileSize,
+        uint32_t encryptedFileSize,
+        uint16_t packetNumber,
+        uint16_t totalPackets);
+
+    ResponsePayload1603 parseFileResponse(
+        const std::vector<uint8_t> &payloadBytes);
+
 }

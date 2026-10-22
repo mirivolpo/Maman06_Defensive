@@ -10,6 +10,8 @@
 #define CLIENT_NAME_SIZE 255
 
 // Request codes
+
+#define SEND_FILE_REQUEST 828
 #define REGISTER_REQUEST 825
 #define SEND_PUBLIC_KEY_REQUEST 826
 
@@ -19,6 +21,8 @@
 #define GENERAL_ERROR 1607
 
 #define PUBLIC_KEY_RESPONSE 1602
+#define FILE_RECEIVED_RESPONSE 1603
+
 
 // namespace ProtocolConstants
 // {

@@ -5,6 +5,8 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <aes.h>
+#include <modes.h>
 
 class CryptoManager
 {
@@ -21,7 +23,15 @@ public:
 
     void savePrivateKeyToFile(const std::string &filePath) const;
 
+    void startFileEncryption(const std::vector<uint8_t> &aesKey);
+
+    std::vector<uint8_t> encryptFileChunk(
+        const std::vector<uint8_t> &chunk,
+        bool isLastChunk);
+
 private:
     CryptoPP::RSA::PrivateKey privateKey_;
     CryptoPP::RSA::PublicKey publicKey_;
+
+    CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aesEncryptor_;
 };

@@ -6,6 +6,10 @@
 #include <iostream>
 #include <cstring>
 #include <fstream>
+#include <limits>
+#include <cstdint>
+
+#define FILE_CHUNK_SIZE 2048
 
 ClientSession::ClientSession(
     const ClientConfig &config,
@@ -166,4 +170,156 @@ void ClientSession::saveClientInfo() const
     }
 
     std::filesystem::rename(tempPath, finalPath);
+}
+
+std::vector<uint8_t> ClientSession::readFileChunk(
+    std::ifstream &file) const
+{
+
+    std::vector<uint8_t> chunk(FILE_CHUNK_SIZE);
+
+    file.read(
+        reinterpret_cast<char *>(chunk.data()),
+        FILE_CHUNK_SIZE);
+
+    std::streamsize bytesRead = file.gcount();
+
+    chunk.resize(static_cast<std::size_t>(bytesRead));
+
+    if (file.bad() || (file.fail() && !file.eof()))
+    {
+        throw std::runtime_error("Failed to read file chunk");
+    }
+
+    return chunk;
+}
+
+void ClientSession::sendFiles()
+{
+    for (const std::string &filePath : config_.filePaths)
+    {
+        sendFile(filePath);
+    }
+}
+
+void ClientSession::sendFile(const std::string &filePath)
+{
+
+    std::ifstream file(filePath, std::ios::binary);
+
+    if (!file)
+    {
+        throw std::runtime_error("Failed to open file: " + filePath);
+    }
+
+    std::uintmax_t originalFileSize =
+        std::filesystem::file_size(filePath);
+
+    std::uintmax_t paddingSize =
+        CryptoPP::AES::BLOCKSIZE -
+        (originalFileSize % CryptoPP::AES::BLOCKSIZE);
+
+    std::uintmax_t encryptedFileSize =
+        originalFileSize + paddingSize;
+
+    if (originalFileSize > std::numeric_limits<uint32_t>::max() ||
+        encryptedFileSize > std::numeric_limits<uint32_t>::max())
+    {
+        throw std::runtime_error(
+            "File is too large for the protocol: " + filePath);
+    }
+
+    std::string fileName =
+        std::filesystem::path(filePath).filename().string();
+
+    std::vector<uint8_t> requestPrefix =
+        MessageCodec::buildFileRequestPrefix(
+            clientId_,
+            fileName,
+            static_cast<uint32_t>(originalFileSize),
+            static_cast<uint32_t>(encryptedFileSize),
+            1,
+            1);
+
+    cryptoManager_.startFileEncryption(aesKey_);
+
+    networkClient_.sendData(requestPrefix);
+
+    while (true)
+    {
+        std::vector<uint8_t> chunk = readFileChunk(file);
+
+        bool isLastChunk =
+            chunk.empty() ||
+            file.peek() == std::char_traits<char>::eof();
+
+        std::vector<uint8_t> encryptedChunk =
+            cryptoManager_.encryptFileChunk(chunk, isLastChunk);
+
+        networkClient_.sendData(encryptedChunk);
+
+        if (isLastChunk)
+        {
+            break;
+        }
+    }
+
+    ResponsePayload1603 response = receiveFileResponse();
+
+    if (std::memcmp(
+            response.clientId,
+            clientId_.clientId,
+            sizeof(response.clientId)) != 0)
+    {
+        throw std::runtime_error(
+            "Client ID mismatch in file response");
+    }
+
+    if (std::strncmp(
+            response.fileName,
+            fileName.c_str(),
+            sizeof(response.fileName)) != 0)
+    {
+        throw std::runtime_error(
+            "File name mismatch in file response");
+    }
+
+    if (response.contentSize !=
+        static_cast<uint32_t>(encryptedFileSize))
+    {
+        throw std::runtime_error(
+            "File size mismatch in file response");
+    }
+}
+
+ResponsePayload1603 ClientSession::receiveFileResponse()
+{
+    std::vector<uint8_t> headerBytes =
+        networkClient_.receiveData(sizeof(ResponseHeader));
+
+    ResponseHeader responseHeader =
+        MessageCodec::parseResponseHeader(headerBytes);
+
+    if (responseHeader.code == GENERAL_ERROR)
+    {
+        throw std::runtime_error(
+            "Server returned general error (1607)");
+    }
+
+    if (responseHeader.code != FILE_RECEIVED_RESPONSE)
+    {
+        throw std::runtime_error(
+            "Unexpected response code after sending file");
+    }
+
+    if (responseHeader.payloadSize != sizeof(ResponsePayload1603))
+    {
+        throw std::runtime_error(
+            "Invalid file response payload size");
+    }
+
+    std::vector<uint8_t> payloadBytes =
+        networkClient_.receiveData(responseHeader.payloadSize);
+
+    return MessageCodec::parseFileResponse(payloadBytes);
 }

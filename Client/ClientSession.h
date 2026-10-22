@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <filesystem>
+#include <fstream>
 
 class ClientSession
 {
@@ -20,6 +21,7 @@ public:
     void registerClient();
     void sendPublicKey();
     void saveClientInfo() const;
+    void sendFiles();
 
 private:
     ClientConfig config_;
@@ -30,4 +32,10 @@ private:
 
     std::vector<uint8_t> aesKey_;
     std::filesystem::path executableDir_;
+
+    std::vector<uint8_t> readFileChunk(std::ifstream &file) const;
+
+    void sendFile(const std::string &filePath);
+
+    ResponsePayload1603 receiveFileResponse();
 };
