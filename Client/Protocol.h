@@ -14,11 +14,16 @@ const uint16_t REGISTER_REQUEST = 825;
 const uint16_t SEND_PUBLIC_KEY_REQUEST = 826;
 const uint16_t SEND_FILE_REQUEST = 828;
 
+const uint16_t CRC_VALID_REQUEST = 900;
+const uint16_t CRC_INVALID_RETRY_REQUEST = 901;
+const uint16_t CRC_INVALID_ABORT_REQUEST = 902;
+
 // Response codes
 const uint16_t REGISTER_SUCCESS = 1600;
 const uint16_t REGISTER_FAILURE = 1601;
 const uint16_t PUBLIC_KEY_RESPONSE = 1602;
 const uint16_t FILE_RECEIVED_RESPONSE = 1603;
+const uint16_t MESSAGE_RECEIVED_RESPONSE = 1604;
 const uint16_t GENERAL_ERROR = 1607;
 
 // Key sizes

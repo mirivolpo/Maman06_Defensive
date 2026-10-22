@@ -1,6 +1,7 @@
 
 #include "ClientSession.h"
 #include "MessageCodec.h"
+#include "Checksum.h"
 
 #include <stdexcept>
 #include <iostream>
@@ -204,6 +205,42 @@ void ClientSession::sendFiles()
 
 void ClientSession::sendFile(const std::string &filePath)
 {
+    const int MAX_ATTEMPTS = 4;
+
+    std::string fileName =
+        std::filesystem::path(filePath).filename().string();
+
+    for (int attempt = 1; attempt <= MAX_ATTEMPTS; ++attempt)
+    {
+        if (sendFileAttempt(filePath))
+        {
+            return;
+        }
+
+        uint16_t code = (attempt < MAX_ATTEMPTS)
+                            ? CRC_INVALID_RETRY_REQUEST
+                            : CRC_INVALID_ABORT_REQUEST;
+
+        std::vector<uint8_t> request =
+            MessageCodec::buildCRCRequest(
+                clientId_,
+                code,
+                fileName);
+
+        networkClient_.sendData(request);
+
+        if (code == CRC_INVALID_ABORT_REQUEST)
+        {
+            receiveCRCConfirmation();
+
+            throw std::runtime_error(
+                "CRC validation failed after 4 attempts: " + fileName);
+        }
+    }
+}
+
+bool ClientSession::sendFileAttempt(const std::string &filePath)
+{
 
     std::ifstream file(filePath, std::ios::binary);
 
@@ -245,9 +282,13 @@ void ClientSession::sendFile(const std::string &filePath)
 
     networkClient_.sendData(requestPrefix);
 
+    uint32_t crc = 0;
+
     while (true)
     {
         std::vector<uint8_t> chunk = readFileChunk(file);
+
+        crc = Checksum::updateCRC(crc, chunk);
 
         bool isLastChunk =
             chunk.empty() ||
@@ -263,6 +304,8 @@ void ClientSession::sendFile(const std::string &filePath)
             break;
         }
     }
+
+    crc = Checksum::finalizeCRC(crc, originalFileSize);
 
     ResponsePayload1603 response = receiveFileResponse();
 
@@ -290,6 +333,21 @@ void ClientSession::sendFile(const std::string &filePath)
         throw std::runtime_error(
             "File size mismatch in file response");
     }
+
+    bool crcMatches = (crc == response.crc);
+
+    if (crcMatches)
+    {
+        std::vector<uint8_t> request =
+            MessageCodec::buildCRCRequest(
+                clientId_,
+                CRC_VALID_REQUEST,
+                fileName);
+
+        networkClient_.sendData(request);
+        receiveCRCConfirmation();
+    }
+    return crcMatches;
 }
 
 ResponsePayload1603 ClientSession::receiveFileResponse()
@@ -322,4 +380,39 @@ ResponsePayload1603 ClientSession::receiveFileResponse()
         networkClient_.receiveData(responseHeader.payloadSize);
 
     return MessageCodec::parseFileResponse(payloadBytes);
+}
+
+void ClientSession::receiveCRCConfirmation()
+{
+    std::vector<uint8_t> headerBytes =
+        networkClient_.receiveData(sizeof(ResponseHeader));
+
+    ResponseHeader header =
+        MessageCodec::parseResponseHeader(headerBytes);
+
+    if (header.code == GENERAL_ERROR)
+    {
+        throw std::runtime_error("Server returned a general error");
+    }
+
+    if (header.code != MESSAGE_RECEIVED_RESPONSE)
+    {
+        throw std::runtime_error("Unexpected CRC confirmation response");
+    }
+
+    if (header.payloadSize != sizeof(ResponsePayloadClientId))
+    {
+        throw std::runtime_error("Invalid CRC confirmation payload size");
+    }
+
+    std::vector<uint8_t> payloadBytes =
+        networkClient_.receiveData(header.payloadSize);
+
+    ResponsePayloadClientId payload =
+        MessageCodec::parseClientIdPayload(payloadBytes);
+
+    if (std::memcmp(payload.clientId, clientId_.clientId, CLIENT_ID_SIZE) != 0)
+    {
+        throw std::runtime_error("Client ID mismatch in CRC confirmation");
+    }
 }

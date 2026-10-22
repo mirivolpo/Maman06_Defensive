@@ -35,4 +35,9 @@ namespace MessageCodec
     ResponsePayload1603 parseFileResponse(
         const std::vector<uint8_t> &payloadBytes);
 
+    std::vector<uint8_t> buildCRCRequest(
+        const ResponsePayloadClientId &clientId,
+        uint16_t code,
+        const std::string &fileName);
+
 }

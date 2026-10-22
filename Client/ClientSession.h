@@ -36,6 +36,8 @@ private:
     std::vector<uint8_t> readFileChunk(std::ifstream &file) const;
 
     void sendFile(const std::string &filePath);
+    bool sendFileAttempt(const std::string &filePath);
 
     ResponsePayload1603 receiveFileResponse();
+    void receiveCRCConfirmation();
 };

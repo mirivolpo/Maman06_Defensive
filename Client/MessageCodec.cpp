@@ -197,3 +197,45 @@ ResponsePayload1603 MessageCodec::parseFileResponse(
 
     return payload;
 }
+
+std::vector<uint8_t> MessageCodec::buildCRCRequest(
+    const ResponsePayloadClientId &clientId,
+    uint16_t code,
+    const std::string &fileName)
+{
+    if (code != CRC_VALID_REQUEST &&
+        code != CRC_INVALID_RETRY_REQUEST &&
+        code != CRC_INVALID_ABORT_REQUEST)
+    {
+        throw std::invalid_argument("Invalid CRC request code");
+    }
+
+    if (fileName.size() >= CLIENT_NAME_SIZE)
+    {
+        throw std::invalid_argument("File name is too long");
+    }
+
+    RequestHeader header{};
+    std::memcpy(header.clientId, clientId.clientId, CLIENT_ID_SIZE);
+    header.version = CLIENT_VERSION;
+    header.code = code;
+    header.payloadSize = sizeof(PayloadName);
+
+    PayloadName payload{};
+    std::memcpy(payload.name, fileName.data(), fileName.size());
+
+    std::vector<uint8_t> message(
+        sizeof(RequestHeader) + sizeof(PayloadName));
+
+    std::memcpy(
+        message.data(),
+        &header,
+        sizeof(RequestHeader));
+
+    std::memcpy(
+        message.data() + sizeof(RequestHeader),
+        &payload,
+        sizeof(PayloadName));
+
+    return message;
+}
