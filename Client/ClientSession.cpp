@@ -9,7 +9,7 @@
 #include <limits>
 #include <cstdint>
 
-#define FILE_CHUNK_SIZE 2048
+const std::size_t FILE_CHUNK_SIZE = 2048;
 
 ClientSession::ClientSession(
     const ClientConfig &config,

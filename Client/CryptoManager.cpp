@@ -8,8 +8,8 @@
 #include <filters.h>
 #include <fstream>
 
-#define RSA_KEY_SIZE_BITS 1024
-#define AES_KEY_SIZE_BYTES 32
+const unsigned int RSA_KEY_SIZE_BITS = 1024;
+const std::size_t AES_KEY_SIZE_BYTES = 32;
 
 void CryptoManager::generateRSAKeys()
 {

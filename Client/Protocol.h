@@ -2,27 +2,28 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <cstddef>
 
-#define CLIENT_VERSION 3
-#define PUBLIC_KEY_SIZE 160
-#define ENCRYPTED_AES_KEY_SIZE 128
-#define CLIENT_ID_SIZE 16
-#define CLIENT_NAME_SIZE 255
+const std::size_t CLIENT_ID_SIZE = 16;
+const std::size_t CLIENT_NAME_SIZE = 255;
+
+const uint8_t CLIENT_VERSION = 3;
 
 // Request codes
-
-#define SEND_FILE_REQUEST 828
-#define REGISTER_REQUEST 825
-#define SEND_PUBLIC_KEY_REQUEST 826
+const uint16_t REGISTER_REQUEST = 825;
+const uint16_t SEND_PUBLIC_KEY_REQUEST = 826;
+const uint16_t SEND_FILE_REQUEST = 828;
 
 // Response codes
-#define REGISTER_SUCCESS 1600
-#define REGISTER_FAILURE 1601
-#define GENERAL_ERROR 1607
+const uint16_t REGISTER_SUCCESS = 1600;
+const uint16_t REGISTER_FAILURE = 1601;
+const uint16_t PUBLIC_KEY_RESPONSE = 1602;
+const uint16_t FILE_RECEIVED_RESPONSE = 1603;
+const uint16_t GENERAL_ERROR = 1607;
 
-#define PUBLIC_KEY_RESPONSE 1602
-#define FILE_RECEIVED_RESPONSE 1603
-
+// Key sizes
+const std::size_t PUBLIC_KEY_SIZE = 160;
+const std::size_t ENCRYPTED_AES_KEY_SIZE = 128;
 
 // namespace ProtocolConstants
 // {
