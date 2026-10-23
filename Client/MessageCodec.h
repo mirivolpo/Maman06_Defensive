@@ -40,4 +40,10 @@ namespace MessageCodec
         uint16_t code,
         const std::string &fileName);
 
+    std::vector<uint8_t> buildReconnectRequest(
+        const ResponsePayloadClientId &clientId,
+        const std::string &clientName);
+
+    ResponsePayloadClientId hexToClientId(const std::string &hex);
+
 }

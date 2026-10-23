@@ -39,9 +39,42 @@ int main()
 
         std::cout << "Connected to server successfully!\n";
 
-        session.registerClient();
+        if (session.hasSavedIdentity())
+        {
+            std::cout << "Saved identity found. Reconnecting...\n";
 
-        session.sendPublicKey();
+            if (session.reconnectClient())
+            {
+                std::cout << "Reconnected successfully!\n";
+            }
+
+            else
+            {
+                std::cout << "Reconnect rejected. Registering again...\n";
+
+                std::filesystem::path identityDir = configPath.parent_path();
+
+                std::filesystem::remove(identityDir / "me.info");
+                std::filesystem::remove(identityDir / "priv.key");
+                std::filesystem::remove(identityDir / "me.info.tmp");
+
+                session.registerClient();
+                session.sendPublicKey();
+            }
+        }
+        else
+        {
+            std::cout << "New client. Registering...\n";
+
+            session.registerClient();
+            session.sendPublicKey();
+        }
+
+        std::cout << "Starting file transfer...\n";
+
+        session.sendFiles();
+
+        std::cout << "All files transferred successfully!\n";
     }
     catch (const std::exception &e)
     {

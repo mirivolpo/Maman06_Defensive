@@ -431,3 +431,167 @@ void ClientSession::receiveCRCConfirmation()
         throw std::runtime_error("Client ID mismatch in CRC confirmation");
     }
 }
+
+void ClientSession::loadSavedClientId()
+{
+    std::filesystem::path infoPath =
+        executableDir_ / "me.info";
+
+    std::ifstream file(infoPath);
+
+    if (!file)
+    {
+        throw std::runtime_error("Failed to open me.info");
+    }
+
+    std::string savedName;
+    std::string clientIdHex;
+
+    if (!std::getline(file, savedName) ||
+        !std::getline(file, clientIdHex))
+    {
+        throw std::runtime_error("Invalid me.info format");
+    }
+
+    if (savedName != config_.clientName)
+    {
+        throw std::runtime_error(
+            "Client name does not match me.info");
+    }
+
+    clientId_ = MessageCodec::hexToClientId(clientIdHex);
+}
+
+bool ClientSession::hasSavedIdentity() const
+{
+    std::filesystem::path infoPath =
+        executableDir_ / "me.info";
+
+    std::filesystem::path keyPath =
+        executableDir_ / "priv.key";
+
+    bool hasInfo = std::filesystem::is_regular_file(infoPath);
+    bool hasKey = std::filesystem::is_regular_file(keyPath);
+
+    if (hasInfo != hasKey)
+    {
+        throw std::runtime_error(
+            "Incomplete saved client identity");
+    }
+
+    return hasInfo;
+}
+
+void ClientSession::loadSavedPrivateKey()
+{
+    std::filesystem::path keyPath =
+        executableDir_ / "priv.key";
+
+    std::ifstream file(keyPath, std::ios::binary);
+
+    if (!file)
+    {
+        throw std::runtime_error("Failed to open priv.key");
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    if (file.bad() || buffer.str().empty())
+    {
+        throw std::runtime_error("Failed to read priv.key");
+    }
+
+    cryptoManager_.loadPrivateKeyFromBase64(buffer.str());
+}
+
+void ClientSession::loadSavedIdentity()
+{
+    if (!hasSavedIdentity())
+    {
+        throw std::runtime_error(
+            "No saved client identity found");
+    }
+
+    loadSavedClientId();
+    loadSavedPrivateKey();
+}
+
+bool ClientSession::reconnectClient()
+{
+    loadSavedIdentity();
+
+    std::vector<uint8_t> request =
+        MessageCodec::buildReconnectRequest(
+            clientId_, config_.clientName);
+
+    networkClient_.sendData(request);
+
+    std::vector<uint8_t> headerData =
+        networkClient_.receiveData(sizeof(ResponseHeader));
+
+    ResponseHeader header =
+        MessageCodec::parseResponseHeader(headerData);
+
+    if (header.code == RECONNECT_FAILURE_RESPONSE)
+    {
+        if (header.payloadSize != sizeof(ResponsePayloadClientId))
+        {
+            throw std::runtime_error("Invalid reconnect failure payload size");
+        }
+
+        std::vector<uint8_t> responseData =
+            networkClient_.receiveData(header.payloadSize);
+
+        ResponsePayloadClientId payload =
+            MessageCodec::parseClientIdPayload(responseData);
+
+        if (std::memcmp(payload.clientId, clientId_.clientId,
+                        CLIENT_ID_SIZE) != 0)
+        {
+            throw std::runtime_error("Client ID mismatch");
+        }
+
+        return false;
+    }
+
+    if (header.code == GENERAL_ERROR)
+    {
+        if (header.payloadSize != 0)
+        {
+            throw std::runtime_error("Invalid general error response size");
+        }
+
+        throw std::runtime_error("Server returned general error (1607)");
+    }
+
+    if (header.code != RECONNECT_SUCCESS_RESPONSE)
+    {
+        throw std::runtime_error("Unexpected reconnect response");
+    }
+
+    if (header.payloadSize != sizeof(ResponsePayload1602))
+    {
+        throw std::runtime_error("Invalid reconnect response size");
+    }
+
+    std::vector<uint8_t> responseData =
+        networkClient_.receiveData(header.payloadSize);
+
+    ResponsePayload1602 payload =
+        MessageCodec::parsePublicKeyResponse(responseData);
+
+    if (std::memcmp(payload.clientId, clientId_.clientId,
+                    CLIENT_ID_SIZE) != 0)
+    {
+        throw std::runtime_error("Client ID mismatch");
+    }
+
+    std::vector<uint8_t> encryptedKey(
+        payload.encryptedAesKey,
+        payload.encryptedAesKey + sizeof(payload.encryptedAesKey));
+
+    aesKey_ = cryptoManager_.decryptAESKey(encryptedKey);
+
+    return true;
+}

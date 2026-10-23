@@ -22,6 +22,8 @@ public:
     void sendPublicKey();
     void saveClientInfo() const;
     void sendFiles();
+    bool hasSavedIdentity() const;
+    bool reconnectClient();
 
 private:
     ClientConfig config_;
@@ -48,4 +50,8 @@ private:
         const ResponsePayload1603 &response,
         const std::string &fileName,
         uint32_t encryptedFileSize) const;
+
+    void loadSavedClientId();
+    void loadSavedPrivateKey();
+    void loadSavedIdentity();
 };

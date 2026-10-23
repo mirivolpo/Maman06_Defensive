@@ -82,6 +82,22 @@ std::string CryptoManager::getPrivateKeyBase64() const
     return base64;
 }
 
+void CryptoManager::loadPrivateKeyFromBase64(
+    const std::string &base64)
+{
+    std::string der;
+
+    CryptoPP::StringSource(
+        base64,
+        true,
+        new CryptoPP::Base64Decoder(
+            new CryptoPP::StringSink(der)));
+
+    CryptoPP::StringSource source(der, true);
+
+    privateKey_.BERDecode(source);
+}
+
 void CryptoManager::savePrivateKeyToFile(const std::string &filePath) const
 {
     std::ofstream file(filePath, std::ios::binary);

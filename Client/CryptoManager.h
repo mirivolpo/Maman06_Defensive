@@ -21,6 +21,8 @@ public:
 
     std::string getPrivateKeyBase64() const;
 
+    void loadPrivateKeyFromBase64(const std::string &base64);
+
     void savePrivateKeyToFile(const std::string &filePath) const;
 
     void startFileEncryption(const std::vector<uint8_t> &aesKey);

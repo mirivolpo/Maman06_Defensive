@@ -239,3 +239,81 @@ std::vector<uint8_t> MessageCodec::buildCRCRequest(
 
     return message;
 }
+
+std::vector<uint8_t> MessageCodec::buildReconnectRequest(
+    const ResponsePayloadClientId &clientId,
+    const std::string &clientName)
+{
+    if (clientName.size() >= CLIENT_NAME_SIZE)
+    {
+        throw std::invalid_argument("Client name is too long");
+    }
+
+    RequestHeader header{};
+    std::memcpy(header.clientId, clientId.clientId, CLIENT_ID_SIZE);
+    header.version = CLIENT_VERSION;
+    header.code = RECONNECT_REQUEST;
+    header.payloadSize = sizeof(PayloadName);
+
+    PayloadName payload{};
+    std::memcpy(
+        payload.name,
+        clientName.data(),
+        clientName.size());
+
+    std::vector<uint8_t> request(
+        sizeof(RequestHeader) + sizeof(PayloadName));
+
+    std::memcpy(
+        request.data(),
+        &header,
+        sizeof(RequestHeader));
+
+    std::memcpy(
+        request.data() + sizeof(RequestHeader),
+        &payload,
+        sizeof(PayloadName));
+
+    return request;
+}
+
+static uint8_t hexCharToValue(char ch)
+{
+    if (ch >= '0' && ch <= '9')
+    {
+        return ch - '0';
+    }
+
+    if (ch >= 'a' && ch <= 'f')
+    {
+        return ch - 'a' + 10;
+    }
+
+    if (ch >= 'A' && ch <= 'F')
+    {
+        return ch - 'A' + 10;
+    }
+
+    throw std::invalid_argument("Invalid hexadecimal character");
+}
+
+ResponsePayloadClientId MessageCodec::hexToClientId(
+    const std::string &hex)
+{
+    if (hex.size() != CLIENT_ID_SIZE * 2)
+    {
+        throw std::invalid_argument("Invalid client ID length");
+    }
+
+    ResponsePayloadClientId result{};
+
+    for (std::size_t i = 0; i < CLIENT_ID_SIZE; ++i)
+    {
+        uint8_t high = hexCharToValue(hex[i * 2]);
+        uint8_t low = hexCharToValue(hex[i * 2 + 1]);
+
+        result.clientId[i] = (high << 4) | low;
+    }
+
+    return result;
+}

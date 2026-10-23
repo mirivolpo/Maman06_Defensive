@@ -12,6 +12,7 @@ const uint8_t CLIENT_VERSION = 3;
 // Request codes
 const uint16_t REGISTER_REQUEST = 825;
 const uint16_t SEND_PUBLIC_KEY_REQUEST = 826;
+const uint16_t RECONNECT_REQUEST = 827;
 const uint16_t SEND_FILE_REQUEST = 828;
 
 const uint16_t CRC_VALID_REQUEST = 900;
@@ -24,6 +25,8 @@ const uint16_t REGISTER_FAILURE = 1601;
 const uint16_t PUBLIC_KEY_RESPONSE = 1602;
 const uint16_t FILE_RECEIVED_RESPONSE = 1603;
 const uint16_t MESSAGE_RECEIVED_RESPONSE = 1604;
+const uint16_t RECONNECT_SUCCESS_RESPONSE = 1605;
+const uint16_t RECONNECT_FAILURE_RESPONSE = 1606;
 const uint16_t GENERAL_ERROR = 1607;
 
 // Key sizes
