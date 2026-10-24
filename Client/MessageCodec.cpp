@@ -6,8 +6,10 @@
 #include <stdexcept>
 #include <limits>
 
+// Serializes protocol requests and parses the fixed-layout response payloads.
 namespace MessageCodec
 {
+    // Build the registration request (825) with a zero-terminated name.
     std::vector<uint8_t> buildRegistrationRequest(const std::string &clientName)
     {
         // Create the request header
@@ -31,6 +33,7 @@ namespace MessageCodec
         return request;
     }
 
+    // Decode the fixed-size header shared by all server responses.
     ResponseHeader parseResponseHeader(const std::vector<uint8_t> &data)
     {
         if (data.size() != sizeof(ResponseHeader))
@@ -44,6 +47,7 @@ namespace MessageCodec
         return header;
     }
 
+    // Decode a 16-byte client ID returned by the server.
     ResponsePayloadClientId parseClientIdPayload(const std::vector<uint8_t> &data)
     {
         if (data.size() != sizeof(ResponsePayloadClientId))
@@ -57,6 +61,7 @@ namespace MessageCodec
         return payload;
     }
 
+    // Convert a binary client ID to the hexadecimal text stored in me.info.
     std::string clientIdToHex(const ResponsePayloadClientId &payload)
     {
         const char hexDigits[] = "0123456789abcdef";
@@ -71,6 +76,7 @@ namespace MessageCodec
         return result;
     }
 
+    // Build request 826 with the registered ID, name, and public RSA key.
     std::vector<uint8_t> buildPublicKeyRequest(
         const std::string &clientName,
         const ResponsePayloadClientId &clientId,
@@ -104,6 +110,7 @@ namespace MessageCodec
         return request;
     }
 
+    // Responses 1602 and 1605 share this client-ID + encrypted-AES-key layout.
     ResponsePayload1602 parsePublicKeyResponse(
         const std::vector<uint8_t> &data)
     {
@@ -121,6 +128,7 @@ namespace MessageCodec
 
 }
 
+// Build request 828's fixed header; encrypted file bytes are streamed separately.
 std::vector<uint8_t> MessageCodec::buildFileRequestPrefix(
     const ResponsePayloadClientId &clientId,
     const std::string &fileName,
@@ -180,6 +188,7 @@ std::vector<uint8_t> MessageCodec::buildFileRequestPrefix(
     return requestPrefix;
 }
 
+// Parse response 1603, including the server-computed file CRC.
 ResponsePayload1603 MessageCodec::parseFileResponse(
     const std::vector<uint8_t> &payloadBytes)
 {
@@ -198,6 +207,7 @@ ResponsePayload1603 MessageCodec::parseFileResponse(
     return payload;
 }
 
+// Build CRC confirmation, retry, or abort requests (900/901/902).
 std::vector<uint8_t> MessageCodec::buildCRCRequest(
     const ResponsePayloadClientId &clientId,
     uint16_t code,
@@ -240,6 +250,7 @@ std::vector<uint8_t> MessageCodec::buildCRCRequest(
     return message;
 }
 
+// Build request 827 using the client ID assigned during the original registration.
 std::vector<uint8_t> MessageCodec::buildReconnectRequest(
     const ResponsePayloadClientId &clientId,
     const std::string &clientName)
@@ -277,6 +288,7 @@ std::vector<uint8_t> MessageCodec::buildReconnectRequest(
     return request;
 }
 
+// Convert a single hexadecimal character to its numeric value (0-15).
 static uint8_t hexCharToValue(char ch)
 {
     if (ch >= '0' && ch <= '9')
@@ -297,6 +309,7 @@ static uint8_t hexCharToValue(char ch)
     throw std::invalid_argument("Invalid hexadecimal character");
 }
 
+// Restore the binary client ID from its 32-character hexadecimal form.
 ResponsePayloadClientId MessageCodec::hexToClientId(
     const std::string &hex)
 {
@@ -311,7 +324,7 @@ ResponsePayloadClientId MessageCodec::hexToClientId(
     {
         uint8_t high = hexCharToValue(hex[i * 2]);
         uint8_t low = hexCharToValue(hex[i * 2 + 1]);
-
+        // Combine two hexadecimal digits into the high and low halves of one byte.
         result.clientId[i] = (high << 4) | low;
     }
 

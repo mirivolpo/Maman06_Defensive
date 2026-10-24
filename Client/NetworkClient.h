@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstddef>
 
+// Wraps the Boost.Asio socket used for exact-size TCP sends and receives.
 class NetworkClient
 {
 public:

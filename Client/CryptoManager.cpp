@@ -8,9 +8,11 @@
 #include <filters.h>
 #include <fstream>
 
+// Cryptographic key lengths required by the assignment protocol.
 const unsigned int RSA_KEY_SIZE_BITS = 1024;
 const std::size_t AES_KEY_SIZE_BYTES = 32;
 
+// Generate an RSA key pair for registration and the initial key exchange.
 void CryptoManager::generateRSAKeys()
 {
     CryptoPP::AutoSeededRandomPool rng;
@@ -19,6 +21,7 @@ void CryptoManager::generateRSAKeys()
     publicKey_.Initialize(privateKey_.GetModulus(), privateKey_.GetPublicExponent());
 }
 
+// Export the public RSA key as DER bytes for request 826.
 std::vector<uint8_t> CryptoManager::getPublicKeyBytes() const
 {
     CryptoPP::ByteQueue queue;
@@ -32,6 +35,7 @@ std::vector<uint8_t> CryptoManager::getPublicKeyBytes() const
     return bytes;
 }
 
+// Decrypt the server-provided AES key with RSA-OAEP and validate its length.
 std::vector<uint8_t> CryptoManager::decryptAESKey(
     const std::vector<uint8_t> &encryptedKey) const
 {
@@ -68,6 +72,7 @@ std::vector<uint8_t> CryptoManager::decryptAESKey(
     return decryptedKey;
 }
 
+// Encode the private RSA key for storage as Base64 text.
 std::string CryptoManager::getPrivateKeyBase64() const
 {
     std::string base64;
@@ -82,6 +87,7 @@ std::string CryptoManager::getPrivateKeyBase64() const
     return base64;
 }
 
+// Restore the original private key for a later reconnect.
 void CryptoManager::loadPrivateKeyFromBase64(
     const std::string &base64)
 {
@@ -98,6 +104,7 @@ void CryptoManager::loadPrivateKeyFromBase64(
     privateKey_.BERDecode(source);
 }
 
+// Save the private RSA key in its Base64 representation .
 void CryptoManager::savePrivateKeyToFile(const std::string &filePath) const
 {
     std::ofstream file(filePath, std::ios::binary);
@@ -122,6 +129,7 @@ void CryptoManager::savePrivateKeyToFile(const std::string &filePath) const
     }
 }
 
+// Initialize a fresh CBC encryption state with the zero IV.
 void CryptoManager::startFileEncryption(
     const std::vector<uint8_t> &aesKey)
 {
@@ -139,12 +147,14 @@ void CryptoManager::startFileEncryption(
         sizeof(iv));
 }
 
+// Encrypt a chunk with the current CBC state; only the last chunk receives padding.
 std::vector<uint8_t> CryptoManager::encryptFileChunk(
     const std::vector<uint8_t> &chunk,
     bool isLastChunk)
 {
     std::vector<uint8_t> paddedChunk = chunk;
 
+    // PKCS#7 adds a full block when the final plaintext length is already aligned.
     if (isLastChunk)
     {
         std::size_t paddingSize =

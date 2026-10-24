@@ -7,6 +7,7 @@
 
 #include "Protocol.h"
 
+// Converts between raw protocol bytes and the structures used by the client.
 namespace MessageCodec
 {
     std::vector<uint8_t> buildRegistrationRequest(const std::string &clientName);

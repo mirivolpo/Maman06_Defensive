@@ -4,6 +4,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+// Loads transfer.json and validates the client configuration before use.
 ClientConfig ConfigManager::loadFromFile(const std::filesystem::path &filePath)
 {
     std::ifstream file(filePath);
@@ -41,7 +42,7 @@ ClientConfig ConfigManager::loadFromFile(const std::filesystem::path &filePath)
     {
         throw std::runtime_error("Invalid client name length");
     }
-
+    // Reject non-ASCII bytes because the protocol expects an ASCII client name.
     for (unsigned char ch : config.clientName)
     {
         if (ch == 0 || ch > 127)

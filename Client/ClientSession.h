@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <fstream>
 
+// Manages a client session: registration, key exchange, file transfer and reconnection.
+
 class ClientSession
 {
 public:

@@ -25,8 +25,10 @@ void ClientSession::connectToServer()
     networkClient_.connect(config_.serverIp, config_.serverPort);
 }
 
+// Registers a new client and generates its RSA keys after server approval.
 void ClientSession::registerClient()
 {
+    // Retry server-side registration failures up to four times.
     for (int attempt = 1; attempt <= 4; ++attempt)
     {
         std::vector<uint8_t> request =
@@ -83,6 +85,7 @@ void ClientSession::registerClient()
     throw std::runtime_error("Fatal: Registration failed after 4 attempts");
 }
 
+// Sends the RSA public key and decrypts the returned session AES key.
 void ClientSession::sendPublicKey()
 {
     std::vector<uint8_t> publicKeyBytes = cryptoManager_.getPublicKeyBytes();
@@ -122,6 +125,7 @@ void ClientSession::sendPublicKey()
     ResponsePayload1602 payload =
         MessageCodec::parsePublicKeyResponse(responsePayloadData);
 
+    // Ensure the encrypted AES key was sent for this client.
     if (std::memcmp(payload.clientId, clientId_.clientId, sizeof(clientId_.clientId)) != 0)
     {
         throw std::runtime_error("Client ID mismatch in server response");
@@ -134,6 +138,7 @@ void ClientSession::sendPublicKey()
     aesKey_ = cryptoManager_.decryptAESKey(encryptedKey);
 }
 
+// Writes identity data to a temporary file before renaming it to me.info.
 void ClientSession::saveClientInfo() const
 {
     std::filesystem::path tempPath = executableDir_ / "me.info.tmp";
@@ -203,6 +208,7 @@ void ClientSession::sendFiles()
     }
 }
 
+// Sends a file up to four times, based on the CRC returned by the server.
 void ClientSession::sendFile(const std::string &filePath)
 {
     const int MAX_ATTEMPTS = 4;
@@ -226,6 +232,7 @@ void ClientSession::sendFile(const std::string &filePath)
             return;
         }
 
+        // Request another attempt (901), or abort after the final mismatch (902).
         uint16_t code = (attempt < MAX_ATTEMPTS)
                             ? CRC_INVALID_RETRY_REQUEST
                             : CRC_INVALID_ABORT_REQUEST;
@@ -248,6 +255,7 @@ void ClientSession::sendFile(const std::string &filePath)
     }
 }
 
+// Performs one encrypted transfer and compares the local and server CRCs.
 bool ClientSession::sendFileAttempt(const std::string &filePath)
 {
 
@@ -261,6 +269,7 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
     std::uintmax_t originalFileSize =
         std::filesystem::file_size(filePath);
 
+    // adds a full block when the original size is already block-aligned.
     std::uintmax_t paddingSize =
         CryptoPP::AES::BLOCKSIZE -
         (originalFileSize % CryptoPP::AES::BLOCKSIZE);
@@ -287,6 +296,7 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
             1,
             1);
 
+    // The file header and encrypted chunks form one protocol request.
     networkClient_.sendData(requestPrefix);
 
     uint32_t crc = sendEncryptedFileContent(
@@ -303,6 +313,7 @@ bool ClientSession::sendFileAttempt(const std::string &filePath)
     return crc == response.crc;
 }
 
+// Streams encrypted chunks while calculating CRC over the original file bytes.
 uint32_t ClientSession::sendEncryptedFileContent(
     std::ifstream &file,
     std::uintmax_t originalFileSize)
@@ -315,8 +326,10 @@ uint32_t ClientSession::sendEncryptedFileContent(
     {
         std::vector<uint8_t> chunk = readFileChunk(file);
 
+        // CRC must be calculated before encryption.
         crc = Checksum::updateCRC(crc, chunk);
 
+        // Finalize padding on the last chunk, including when the file is empty.
         bool isLastChunk =
             chunk.empty() ||
             file.peek() == std::char_traits<char>::eof();
@@ -473,6 +486,7 @@ bool ClientSession::hasSavedIdentity() const
     bool hasInfo = std::filesystem::is_regular_file(infoPath);
     bool hasKey = std::filesystem::is_regular_file(keyPath);
 
+    // A single identity file indicates incomplete saved state.
     if (hasInfo != hasKey)
     {
         throw std::runtime_error(
@@ -494,6 +508,7 @@ void ClientSession::loadSavedPrivateKey()
         throw std::runtime_error("Failed to open priv.key");
     }
 
+    // Read the entire Base64-encoded private key from disk.
     std::ostringstream buffer;
     buffer << file.rdbuf();
 
@@ -517,6 +532,7 @@ void ClientSession::loadSavedIdentity()
     loadSavedPrivateKey();
 }
 
+// Reconnects with saved credentials; false means the server requests new registration.
 bool ClientSession::reconnectClient()
 {
     loadSavedIdentity();
@@ -570,6 +586,7 @@ bool ClientSession::reconnectClient()
         throw std::runtime_error("Unexpected reconnect response");
     }
 
+    // Response 1605 has the same payload layout as response 1602.
     if (header.payloadSize != sizeof(ResponsePayload1602))
     {
         throw std::runtime_error("Invalid reconnect response size");

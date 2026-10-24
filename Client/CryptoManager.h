@@ -8,6 +8,7 @@
 #include <aes.h>
 #include <modes.h>
 
+// Manages RSA keys, AES key decryption, and stateful AES-CBC file encryption.
 class CryptoManager
 {
 

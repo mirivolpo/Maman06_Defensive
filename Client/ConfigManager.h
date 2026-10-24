@@ -5,6 +5,7 @@
 #include <vector>
 #include <filesystem>
 
+// Connection details, client identity, and file paths loaded from transfer.json.
 struct ClientConfig
 {
     std::string serverIp;
@@ -13,6 +14,7 @@ struct ClientConfig
     std::vector<std::string> filePaths;
 };
 
+// Reads and validates the client configuration file.
 class ConfigManager
 {
 public:

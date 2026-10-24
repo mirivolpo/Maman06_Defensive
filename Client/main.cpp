@@ -13,7 +13,7 @@ int main()
 {
     try
     {
-
+        // Locate configuration relative to the executable, not the working directory.
         wchar_t exePath[MAX_PATH] = {};
         DWORD length = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
         if (length == 0 || length >= MAX_PATH)
@@ -39,6 +39,7 @@ int main()
 
         std::cout << "Connected to server successfully!\n";
 
+        // Reconnect using saved credentials when possible; otherwise register anew.
         if (session.hasSavedIdentity())
         {
             std::cout << "Saved identity found. Reconnecting...\n";
@@ -51,7 +52,7 @@ int main()
             else
             {
                 std::cout << "Reconnect rejected. Registering again...\n";
-
+                // The server rejected the old identity; discard its saved files before re-registering.
                 std::filesystem::path identityDir = configPath.parent_path();
 
                 std::filesystem::remove(identityDir / "me.info");
@@ -71,7 +72,7 @@ int main()
         }
 
         std::cout << "Starting file transfer...\n";
-
+        // Transfer files only after registration/reconnect and AES key exchange succeed.
         session.sendFiles();
 
         std::cout << "All files transferred successfully!\n";

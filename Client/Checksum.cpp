@@ -4,6 +4,7 @@
 namespace Checksum
 {
 
+    // Lookup table for the CRC-32 calculation used by POSIX cksum.
     const uint32_t crctab[256] = {
         0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
         0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61, 0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd,
@@ -38,12 +39,14 @@ namespace Checksum
         0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662, 0x933eb0bb, 0x97ffad0c,
         0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
+    // Updates the running CRC for one chunk of the original file.
     uint32_t updateCRC(
         uint32_t currentCRC,
         const std::vector<uint8_t> &chunk)
     {
         for (uint8_t byte : chunk)
         {
+            // Combine the CRC's top byte with the next input byte.
             uint32_t tableIndex = (currentCRC >> 24) ^ byte;
 
             currentCRC = (currentCRC << 8) ^ crctab[tableIndex];
@@ -52,10 +55,12 @@ namespace Checksum
         return currentCRC;
     }
 
+    // POSIX cksum includes the file length in the CRC before final inversion.
     uint32_t finalizeCRC(
         uint32_t currentCRC,
         std::uintmax_t fileSize)
     {
+        // Process the file length one byte at a time, least significant first.
         while (fileSize != 0)
         {
             uint8_t sizeByte =

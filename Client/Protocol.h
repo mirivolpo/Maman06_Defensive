@@ -33,20 +33,10 @@ const uint16_t GENERAL_ERROR = 1607;
 const std::size_t PUBLIC_KEY_SIZE = 160;
 const std::size_t ENCRYPTED_AES_KEY_SIZE = 128;
 
-// namespace ProtocolConstants
-// {
-//     inline constexpr uint8_t CLIENT_VERSION = 3;
-//     inline constexpr uint16_t REGISTER_REQUEST = 825;
-
-//     inline constexpr uint16_t REGISTER_SUCCESS = 1600;
-//     inline constexpr uint16_t REGISTER_FAILURE = 1601;
-//     inline constexpr uint16_t GENERAL_ERROR = 1607;
-
-// }
-
 // Disable memory padding to ensure exact binary alignment with the Python server
 #pragma pack(push, 1)
 
+// Shared header sent before every request payload (23 bytes).
 struct RequestHeader
 {
     uint8_t clientId[CLIENT_ID_SIZE];
@@ -79,6 +69,7 @@ struct PayloadFile
     // The encrypted file content will be sent immediately after this struct
 };
 
+// Shared header received before every response payload (7 bytes).
 struct ResponseHeader
 {
     uint8_t version;
@@ -91,6 +82,7 @@ struct ResponsePayloadClientId
     uint8_t clientId[CLIENT_ID_SIZE];
 };
 
+// Response 1605 uses the same payload layout as response 1602.
 struct ResponsePayload1602
 {
     uint8_t clientId[CLIENT_ID_SIZE];
