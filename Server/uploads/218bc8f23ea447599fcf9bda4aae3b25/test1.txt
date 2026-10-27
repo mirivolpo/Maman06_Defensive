@@ -1,0 +1,2 @@
+Hello from the C++ client!
+This is a test file for CRC verification.

@@ -1,6 +1,7 @@
 """
 File Manager module
 """
+
 import os
 
 import constants
@@ -13,14 +14,23 @@ class FileManager:
         """Initializes the manager and ensures the upload directory exists."""
         os.makedirs(constants.UPLOAD_DIR, exist_ok=True)
 
-    def save_file(self, file_name, content):
+    def save_file(self, file_name, content, client_id=None):
         """
         Saves the given binary content to a file in the upload directory.
         Returns True if successful, False otherwise.
         """
-        file_path = os.path.join(constants.UPLOAD_DIR, file_name)
+        safe_file_name = os.path.basename(file_name.replace("\\", "/"))
+        if safe_file_name in ("", ".", "..") or "\x00" in safe_file_name:
+            print(f"Invalid file name: '{file_name}'")
+            return False
+        client_dir = constants.UPLOAD_DIR
+
+        if client_id is not None:
+            client_dir = os.path.join(constants.UPLOAD_DIR, client_id.hex())
+        os.makedirs(client_dir, exist_ok=True)
+        file_path = os.path.join(client_dir, safe_file_name)
         try:
-            with open(file_path, 'wb') as f:
+            with open(file_path, "wb") as f:
                 f.write(content)
             print(f"Success! File '{file_name}' saved to {constants.UPLOAD_DIR}.")
             return True

@@ -2,6 +2,7 @@
 Server module for the Defensive Systems Programming Server.
 Manages the main socket, threading, and global state.
 """
+
 import os
 import socket
 import threading
@@ -17,6 +18,10 @@ class Server:
     def __init__(self):
         """Initializes the server state and loads the port configuration."""
         self.clients = {}
+
+        # Shared lock to prevent race conditions during client registration.
+        self.clients_lock = threading.Lock()
+
         self.files = {}
         self.file_manager = FileManager()
         self.port = self._read_port()
@@ -28,12 +33,14 @@ class Server:
         """
         try:
             if os.path.exists(constants.PORT_INFO_FILE):
-                with open(constants.PORT_INFO_FILE, 'r', encoding='utf-8') as f:
+                with open(constants.PORT_INFO_FILE, "r", encoding="utf-8") as f:
                     return int(f.read().strip())
             else:
                 print("Warning: port.info not found. Using default port 1369.")
         except (ValueError, OSError) as e:
-            print(f"Warning: Could not read port from file. Using default 1369. Error: {e}")
+            print(
+                f"Warning: Could not read port from file. Using default 1369. Error: {e}"
+            )
 
         # Default port 1369 as required if reading fails
         return constants.DEFAULT_PORT
@@ -43,21 +50,27 @@ class Server:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.bind((constants.HOST, self.port))
             server_socket.listen()
+            server_socket.settimeout(1)
             print(f"Server started. Listening on port {self.port}...")
 
             while True:
                 try:
                     conn, addr = server_socket.accept()
+                    conn.settimeout(300)
 
                     # Create a handler instance for the new client
-                    handler = RequestHandler(self.clients, self.file_manager, self.files)
+                    handler = RequestHandler(
+                        self.clients, self.file_manager, self.files, self.clients_lock
+                    )
 
                     # Spawn a new thread for the client
                     client_thread = threading.Thread(
-                        target=handler.handle_client_request,
-                        args=(conn, addr)
+                        target=handler.handle_client_request, args=(conn, addr)
                     )
                     client_thread.start()
+
+                except TimeoutError:
+                    continue
 
                 except OSError as e:
                     print(f"Server socket error: {e}")

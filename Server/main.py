@@ -12,7 +12,10 @@ def main():
     my_server = Server()
 
     # Start the server loop
-    my_server.start()
+    try:
+        my_server.start()
+    except KeyboardInterrupt:
+        print("\nServer stopped by user.")
 
 if __name__ == "__main__":
     main()
