@@ -51,7 +51,6 @@ class RequestHandler:
             if not header_data or len(header_data) < constants.REQ_HEADER_SIZE:
                 return None
 
-            # Unpack the little-endian formatted header
             client_id, version, code, payload_size = struct.unpack(
                 constants.REQ_HEADER_FORMAT, header_data
             )
@@ -70,7 +69,6 @@ class RequestHandler:
 
         while True:
             try:
-                # Parse the incoming request header
                 header = self.parse_header(conn)
                 if not header:
                     print(f"Client {addr} disconnected.")
@@ -154,6 +152,7 @@ class RequestHandler:
                 conn.sendall(response_header)
                 raise ValueError("Client name cannot be empty")
 
+            # Check and insert atomically to prevent duplicate names across threads.
             with self.clients_lock:
                 name_exists = False
 
@@ -322,6 +321,7 @@ class RequestHandler:
             cipher_rsa = PKCS1_OAEP.new(rsa_key)
             encrypted_aes_key = cipher_rsa.encrypt(aes_key)
 
+            # Update the session key only after RSA encryption succeeds.
             self.clients[client_id].aes_key = aes_key
 
             payload_size_1605 = constants.UUID_SIZE + len(encrypted_aes_key)
@@ -424,6 +424,8 @@ class RequestHandler:
                 conn.sendall(error_header)
                 conn.close()
                 return
+
+            # Check PKCS#7 padding instead of relying only on the declared file size.
             decrypted_content = unpad(decrypted_content_padded, AES.block_size)
 
             if len(decrypted_content) != orig_file_size:
@@ -456,6 +458,7 @@ class RequestHandler:
 
             conn.sendall(header_1603 + payload_1603)
 
+            # Keep the file in memory until the client confirms its CRC.
             self.clients[client_id].temp_file_content = decrypted_content
             self.clients[client_id].temp_file_name = file_name
 
@@ -512,6 +515,7 @@ class RequestHandler:
                 conn.sendall(response)
                 return
 
+            # A CRC decision must refer to the pending upload, not another file.
             if file_name != self.clients[client_id].temp_file_name:
                 response = struct.pack(
                     constants.RESPONSE_HEADER_FORMAT,

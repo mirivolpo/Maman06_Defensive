@@ -19,12 +19,15 @@ class FileManager:
         Saves the given binary content to a file in the upload directory.
         Returns True if successful, False otherwise.
         """
+
+        # Strip directory components, including those using Windows separators.
         safe_file_name = os.path.basename(file_name.replace("\\", "/"))
         if safe_file_name in ("", ".", "..") or "\x00" in safe_file_name:
             print(f"Invalid file name: '{file_name}'")
             return False
         client_dir = constants.UPLOAD_DIR
 
+        # Keep each client's files separate to avoid name collisions.
         if client_id is not None:
             client_dir = os.path.join(constants.UPLOAD_DIR, client_id.hex())
         os.makedirs(client_dir, exist_ok=True)

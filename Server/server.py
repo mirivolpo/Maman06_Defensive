@@ -50,12 +50,17 @@ class Server:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.bind((constants.HOST, self.port))
             server_socket.listen()
+
+            # Periodic timeout allows the server to respond to Ctrl+C.
             server_socket.settimeout(1)
+
             print(f"Server started. Listening on port {self.port}...")
 
             while True:
                 try:
                     conn, addr = server_socket.accept()
+
+                    # Disconnect clients after five minutes of inactivity.
                     conn.settimeout(300)
 
                     # Create a handler instance for the new client
